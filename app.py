@@ -30,7 +30,7 @@ def calculate_payroll(amount, input_type, pension_rate):
             gross =(amount - 154)/0.72072
 
     # --- Detailed Calculations ---
-    pension_std = gross * standard_pension_rate
+
     pension_funded = gross * (pension_rate / 100)
     unemployment_ee = gross * unemployment_ee_rate
     
