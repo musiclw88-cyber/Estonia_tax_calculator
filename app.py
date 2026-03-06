@@ -11,7 +11,7 @@ def calculate_payroll(amount, input_type, pension_rate):
     
     # Total Employee Deduction rate (excluding Income Tax)
     # 6% Standard + 1.6% Unemployment + Selected Funded Pension (0-6%)
-    ee_deduction_rate = standard_pension_rate + unemployment_ee_rate + (pension_rate / 100)
+    ee_deduction_rate = pension_rate + unemployment_ee_rate + (pension_rate / 100)
 
     # --- Core Logic: Calculate Gross Salary ---
     if input_type == "Gross Salary":
