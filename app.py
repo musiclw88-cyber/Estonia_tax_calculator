@@ -1,105 +1,102 @@
 import streamlit as st
 
-def calculate_payroll(amount, input_type, pension_rate):
-    # --- Standard Parameters ---
-    tax_free_threshold = 700
-    income_tax_rate = 0.22
-    unemployment_ee_rate = 0.016
-    social_tax_er_rate = 0.33
-    unemployment_er_rate = 0.008
-    pension_rate = 0.00, 0.02, 0.04, 0.06
+def calculate_tax_from_net(net_salary, pension_rate):
+    """
+    Reverse calculation for Estonia 2026.
+    - Flat tax-free allowance: €700
+    - Income Tax: 22%
+    - Pension Pillar II: User defined (0%, 2%, 4%, or 6%)
+    - Unemployment Insurance: 1.6% (Employee) / 0.8% (Employer)
+    """
     
-    # Total Employee Deduction rate (excluding Income Tax)
-    # 6% Standard + 1.6% Unemployment + Selected Funded Pension (0-6%)
-    ee_deduction_rate = pension_rate + unemployment_ee_rate + (pension_rate / 100)
+    # Rates and Constants
+    p_rate = pension_rate / 100
+    ui_ee_rate = 0.016
+    allowance = 700.0
+    it_rate = 0.22
 
-    # --- Core Logic: Calculate Gross Salary ---
-    if input_type == "Gross Salary":
-        gross = amount
+    # Step 1: Reverse Calculate Gross Salary
+    # If Net <= 700 * (1 - p_rate - ui_ee_rate), no income tax is paid.
+    threshold_net = allowance * (1 - p_rate - ui_ee_rate)
+    
+    if net_salary <= threshold_net:
+        gross_salary = net_salary / (1 - p_rate - ui_ee_rate)
     else:
-        # Reverse Calculation (Net -> Gross)
-        tax_credit = tax_free_threshold * income_tax_rate
-        # Coefficient representing the ratio of Net after deductions and tax
-        coefficient = (1 - ee_deduction_rate) * (1 - income_tax_rate)
-        
-        # Check if the amount is below the tax-free threshold logic
-        threshold_net = tax_free_threshold * (1 - ee_deduction_rate)
-        if amount <= threshold_net:
-            gross = amount / (1 - ee_deduction_rate)
-        else:
-            gross =(amount - 154)/0.72072
+        # Derived formula for 2026 rules:
+        # Gross = (Net - (Allowance * IT_rate)) / ((1 - p_rate - ui_ee_rate) * (1 - IT_rate))
+        numerator = net_salary - (allowance * it_rate)
+        denominator = (1 - p_rate - ui_ee_rate) * (1 - it_rate)
+        gross_salary = numerator / denominator
 
-    # --- Detailed Calculations ---
+    # Step 2: Detailed Calculations (Employee side)
+    pension_funded = gross_salary * p_rate
+    unemployment_ee = gross_salary * ui_ee_rate
+    
+    # Taxable base = Gross - Pension - UI_EE - 700
+    taxable_base = gross_salary - pension_funded - unemployment_ee - allowance
+    income_tax = max(0.0, taxable_base * it_rate)
 
-    pension_funded = gross * (pension_rate / 100)
-    unemployment_ee = gross * unemployment_ee_rate
-    
-    # Taxable Base for Income Tax
-    taxable_base = gross - pension_std - pension_funded - unemployment_ee - tax_free_threshold
-    income_tax = max(0.0, taxable_base * income_tax_rate)
-    
-    # Final Net Salary
-    if input_type == "Gross Salary":
-        net_salary = gross - (pension_std + pension_funded + unemployment_ee) - income_tax
-    else: net_salary = amount 
-        
-    # Employer Contributions
-    social_tax_er = gross * social_tax_er_rate
-    unemployment_er = gross * unemployment_er_rate
-    total_employer_cost = gross + social_tax_er + unemployment_er
-    
-    # --- TOTAL TAX BURDEN ---
-    # Formula: Total Employer Cost - Net Salary = Everything paid to the state
-    total_tax_burden = total_employer_cost - net_salary
-    
+    # Step 3: Employer Contributions
+    social_tax = gross_salary * 0.33
+    unemployment_er = gross_salary * 0.008
+    total_employer_cost = gross_salary + social_tax + unemployment_er
+
+    # Step 4: Total Tax Burden (All taxes combined)
+    total_tax_paid = (pension_funded + unemployment_ee + income_tax) + (social_tax + unemployment_er)
+
     return {
-        "Total Employer Cost": total_employer_cost,
-        "Total Tax Burden": total_tax_burden,
-        "Gross Salary": gross,
-        "Net Salary": net_salary,
-        "Income Tax (22%)": income_tax,
-        "Standard Pension (6%)": pension_std,
-        "Funded Pension (Selected)": pension_funded,
-        "Unemployment (Employee)": unemployment_ee,
-        "Social Security (Employer)": social_tax_er,
-        "Unemployment (Employer)": unemployment_er
+        "gross": gross_salary,
+        "total_cost": total_employer_cost,
+        "income_tax": income_tax,
+        "pension": pension_funded,
+        "ee_ui": unemployment_ee,
+        "social": social_tax,
+        "er_ui": unemployment_er,
+        "burden": total_tax_paid,
+        "ratio": (total_tax_paid / total_employer_cost) * 100 if total_employer_cost > 0 else 0
     }
 
-# --- Web Interface Layout ---
-st.set_page_config(page_title="Global Payroll Calculator", page_icon="🏦")
-st.title("🏦 Advanced Payroll & Tax Simulator")
+# --- Streamlit UI ---
+st.set_page_config(page_title="Estonia Tax Calc 2026", page_icon="🇪🇪")
 
-st.markdown("""
-This tool calculates the full cost of employment and tax breakdowns based on either **Net** or **Gross** salary.
-""")
+st.title("🇪🇪 Estonia Salary Reverse Calculator (2026)")
+st.info("Calculated with the **€700** flat allowance and **22%** income tax rate.")
 
 # Input Section
-col_in1, col_in2 = st.columns(2)
-with col_in1:
-    salary_type = st.radio("1. Select Input Type", ["Net Salary", "Gross Salary"])
-    input_amount = st.number_input(f"2. Enter {salary_type} Amount", min_value=0.0, value=3000.0, step=100.0)
-with col_in2:
-    pension_choice = st.selectbox("3. Funded Pension Subscriber (%)", [0, 2, 4, 6], index=0)
+col1, col2 = st.columns([2, 1])
+with col1:
+    net_input = st.number_input("Desired Net Salary (In hand €):", min_value=0.0, value=1900.0, step=50.0)
+with col2:
+    pension_opt = st.selectbox("Pension Pillar II:", [0, 2, 4, 6], index=3, format_func=lambda x: f"{x}%")
 
-if input_amount:
-    res = calculate_payroll(input_amount, salary_type, pension_choice)
+if net_input > 0:
+    res = calculate_tax_from_net(net_input, pension_opt)
     
+    # Primary Results
     st.divider()
-    
-    # Metrics Row: The three most important numbers
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Total Employer Cost", f"€{res['Total Employer Cost']:,.2f}")
-    m2.metric("Total Tax Burden", f"€{res['Total Tax Burden']:,.2f}", delta="-Government Take", delta_color="inverse")
-    m3.metric("Employee Take-home", f"€{res['Net Salary']:,.2f}")
+    res_col1, res_col2 = st.columns(2)
+    res_col1.metric("Required Gross Salary", f"€{res['gross']:,.2f}")
+    res_col2.metric("Total Employer Cost", f"€{res['total_cost']:,.2f}")
 
-    # Detailed Table
-    st.subheader("📊 Full Financial Breakdown")
-    # Formatting numbers for the table
-    formatted_res = {k: f"€{v:,.2f}" for k, v in res.items()}
-    st.table(formatted_res)
+    # Detailed Breakdown Table
+    st.subheader("Monthly Breakdown")
+    st.table({
+        "Category": [
+            "Net Salary (In hand)", 
+            f"Pension Pillar II ({pension_opt}%)", 
+            "Income Tax (22%)", 
+            "Unemployment Insurance (Employee 1.6%)", 
+            "Social Tax (Employer 33%)", 
+            "Unemployment Insurance (Employer 0.8%)"
+        ],
+        "Amount": [
+            f"€{net_input:,.2f}",
+            f"€{res['pension']:,.2f}",
+            f"€{res['income_tax']:,.2f}",
+            f"€{res['ee_ui']:,.2f}",
+            f"€{res['social']:,.2f}",
+            f"€{res['er_ui']:,.2f}"
+        ]
+    })
 
-    # Efficiency Insights
-    efficiency = (res['Net Salary'] / res['Total Employer Cost']) * 100
-    st.info(f"💡 **Salary Efficiency:** The employee receives **{efficiency:.2f}%** of the company's total expenditure.")
-
-st.caption("Calculation based on standard 22% Income Tax after a 700 threshold and combined employer/employee social contributions.")
+    st.warning(f"Total tax burden: **€{res['burden']:,.2f}** ({res['ratio']:.2f}% of total cost).")
