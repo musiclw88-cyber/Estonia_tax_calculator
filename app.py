@@ -39,8 +39,10 @@ def calculate_payroll(amount, input_type, pension_rate):
     income_tax = max(0.0, taxable_base * income_tax_rate)
     
     # Final Net Salary
-    net_salary = gross - (pension_std + pension_funded + unemployment_ee) - income_tax
-    
+    if input_type == "Gross Salary":
+        net_salary = gross - (pension_std + pension_funded + unemployment_ee) - income_tax
+    else: net_salary = amount 
+        
     # Employer Contributions
     social_tax_er = gross * social_tax_er_rate
     unemployment_er = gross * unemployment_er_rate
