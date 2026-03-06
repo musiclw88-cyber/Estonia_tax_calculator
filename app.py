@@ -57,7 +57,7 @@ def calculate_taxes(amount, mode, pension_rate):
 # --- Streamlit UI ---
 st.set_page_config(page_title="Estonia Tax Calc 2026", page_icon="🇪🇪")
 
-st.title("🇪🇪 Estonia Salary Calculator (2026)")
+st.title("🇪🇪 Estonia tax Calculator (2026)")
 st.info("Updated for 2026: **€700** flat allowance and **22%** income tax rate.")
 
 # Mode Selection
