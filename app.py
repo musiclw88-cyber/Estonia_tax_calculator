@@ -27,7 +27,7 @@ def calculate_payroll(amount, input_type, pension_rate):
         if amount <= threshold_net:
             gross = amount / (1 - ee_deduction_rate)
         else:
-            gross =(net_salary - 154)/0.72072
+            gross =(amount - 154)/0.72072
 
     # --- Detailed Calculations ---
     pension_std = gross * standard_pension_rate
